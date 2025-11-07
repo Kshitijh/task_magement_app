@@ -75,6 +75,32 @@ input:focus {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  position: relative;
+  min-height: 90vh;
+  max-height: 99vh;
+}
+
+.sidebar-spacer {
+  flex-grow: 1;
+}
+
+.logout-button {
+  background: #7b7b7bdb;
+  color: white;
+  border: none;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: auto;
+  width: 100%;
+}
+
+.logout-button:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .sidebar-home-button {
@@ -248,7 +274,7 @@ input:focus {
 }
 
 .modal-header {
-  padding: 1rem;
+  padding: 10px;
   border-bottom: 1px solid #e5e7eb;
   display: flex;
   justify-content: space-between;
@@ -366,4 +392,106 @@ input:focus {
   border-top: 1px solid #e5e7eb;
   display: flex;
   justify-content: flex-end;
+  gap: 1rem;
+}
+
+.delete-user-button {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-user-button:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 38, 38, 0.2);
+}
+
+/* Task form styles */
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.task-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-form-row label {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.task-form-row input,
+.task-form-row select,
+.task-form-row textarea {
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  width: 90%;
+}
+.task-form-row select {
+  width: 92% !important;
+}
+
+  .task-form-row textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.task-form-row input:focus,
+.task-form-row select:focus,
+.task-form-row textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.add-task-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-task-button:hover {
+  background: #2563eb;
+}
+
+.add-task-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* User edit button styles */
+.edit-user-button {
+  background: #7b7b7bdb;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  margin-left: 0.5rem;
+}
+
+.edit-user-button:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
