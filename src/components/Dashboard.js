@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
-import Modal from './Modal';
-import '../App.css';
+import React, { useState } from "react";
+import Modal from "./Modal";
+import "../App.css";
 
 function Dashboard() {
-  const [active, setActive] = useState('Tasks');
+  const [active, setActive] = useState("Tasks");
   const [selectedTask, setSelectedTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [approvalMessage, setApprovalMessage] = useState('');
+  const [approvalMessage, setApprovalMessage] = useState("");
 
   // Calculate number of pending tasks
   const getPendingTasksCount = () => {
-    return sampleTasks.filter(task => 
-      task.status === 'Pending' || task.status === 'In Progress'
+    return sampleTasks.filter(
+      (task) => task.status === "Pending" || task.status === "In Progress"
     ).length;
   };
 
@@ -23,14 +23,16 @@ function Dashboard() {
 
   const handleApprovalRequest = () => {
     // placeholder for approval workflow - integrate with backend later
-    console.log('Sending approval request:', {
+    console.log("Sending approval request:", {
       taskId: selectedTask.id,
-      message: approvalMessage
+      message: approvalMessage,
     });
-    alert(`Approval requested for task "${selectedTask.title}" with message: ${approvalMessage}`);
+    alert(
+      `Approval requested for task "${selectedTask.title}" with message: ${approvalMessage}`
+    );
     setIsModalOpen(false);
     setSelectedTask(null);
-    setApprovalMessage('');
+    setApprovalMessage("");
   };
 
   const handleViewTask = (task) => {
@@ -40,45 +42,60 @@ function Dashboard() {
 
   // sample data — replace with real data later
   const sampleTasks = [
-    { 
-      id: 1, 
-      title: 'Design homepage', 
-      status: 'In Progress', 
-      due: '2025-11-10',
-      description: 'Create a responsive homepage design with modern UI elements',
-      approver: 'Kshitij Hupare',
-      priority: 'High'
+    {
+      id: 1,
+      title: "Design homepage",
+      status: "In Progress",
+      due: "2025-11-10",
+      description:
+        "Create a responsive homepage design with modern UI elements",
+      approver: "Kshitij Hupare",
+      priority: "High",
     },
-    { 
-      id: 2, 
-      title: 'Implement auth', 
-      status: 'Pending', 
-      due: '2025-11-15',
-      description: 'Implement user authentication using JWT tokens',
-      approver: 'Sagar Thorat',
-      priority: 'Medium'
+    {
+      id: 2,
+      title: "Implement auth",
+      status: "Pending",
+      due: "2025-11-15",
+      description: "Implement user authentication using JWT tokens",
+      approver: "Sagar Thorat",
+      priority: "Medium",
     },
-    { 
-      id: 3, 
-      title: 'Write tests', 
-      status: 'Done', 
-      due: '2025-11-01',
-      description: 'Write unit and integration tests for core features',
-      approver: 'Carol Lee',
-      priority: 'Low'
+    {
+      id: 3,
+      title: "Write tests",
+      status: "Done",
+      due: "2025-11-01",
+      description: "Write unit and integration tests for core features",
+      approver: "Carol Lee",
+      priority: "Low",
     },
   ];
 
   const sampleUsers = [
-    { id: 1, name: 'Kshitij Hupare', email: 'kshitij@example.com', role: 'Admin' },
-    { id: 2, name: 'Sagar Thorath', email: 'sagar@example.com', role: 'Member' },
-    { id: 3, name: 'Tony Stark', email: 'tony@example.com', role: 'Member' },
+    {
+      id: 1,
+      name: "Kshitij Hupare",
+      email: "kshitij@example.com",
+      role: "Admin",
+    },
+    {
+      id: 2,
+      name: "Sagar Thorath",
+      email: "sagar@example.com",
+      role: "Member",
+    },
+    { id: 3, name: "Tony Stark", email: "tony@example.com", role: "Member" },
   ];
 
   // Determine username: prefer localStorage (set by a login flow),
   // otherwise fall back to the first sample user, otherwise 'Guest'.
-  const storedUser = typeof window !== 'undefined' ? window.localStorage.getItem('username') : null;
-  const username = storedUser || (sampleUsers[0] && sampleUsers[0].name) || 'Guest';
+  const storedUser =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("username")
+      : null;
+  const username =
+    storedUser || (sampleUsers[0] && sampleUsers[0].name) || "Guest";
 
   const TasksTable = ({ rows }) => (
     <table className="table">
@@ -99,10 +116,7 @@ function Dashboard() {
             <td>{r.status}</td>
             <td>{r.due}</td>
             <td>
-              <button 
-                className="view-button"
-                onClick={() => handleViewTask(r)}
-              >
+              <button className="view-button" onClick={() => handleViewTask(r)}>
                 View
               </button>
             </td>
@@ -138,26 +152,24 @@ function Dashboard() {
   return (
     <div className="dashboard-root">
       <aside className="sidebar">
-        <button 
-          className="sidebar-home-button" 
-          onClick={() => setActive('Tasks')}
+        <button
+          className="sidebar-home-button"
+          onClick={() => setActive("Tasks")}
         >
           {username}
         </button>
         <button
-          className={`sidebar-button ${active === 'Tasks' ? 'active' : ''}`}
-          onClick={() => setActive('Tasks')}
+          className={`sidebar-button ${active === "Tasks" ? "active" : ""}`}
+          onClick={() => setActive("Tasks")}
         >
           Tasks
           {getPendingTasksCount() > 0 && (
-            <span className="notification-badge">
-              {getPendingTasksCount()}
-            </span>
+            <span className="notification-badge">{getPendingTasksCount()}</span>
           )}
         </button>
         <button
-          className={`sidebar-button ${active === 'Users' ? 'active' : ''}`}
-          onClick={() => setActive('Users')}
+          className={`sidebar-button ${active === "Users" ? "active" : ""}`}
+          onClick={() => setActive("Users")}
         >
           Users
         </button>
@@ -168,12 +180,12 @@ function Dashboard() {
           <div className="table-title">{active}</div>
           <div className="table-actions">
             <button className="edit-button" onClick={handleEdit}>
-              {active === 'Tasks' ? 'Add Tasks' : 'Add Users'}
+              {active === "Tasks" ? "Add Tasks" : "Add Users"}
             </button>
           </div>
         </div>
 
-        {active === 'Tasks' ? (
+        {active === "Tasks" ? (
           <TasksTable rows={sampleTasks} />
         ) : (
           <UsersTable rows={sampleUsers} />
@@ -212,7 +224,9 @@ function Dashboard() {
             </div>
             <div className="task-detail-row">
               <span className="task-detail-label">Description:</span>
-              <span className="task-detail-value">{selectedTask.description}</span>
+              <span className="task-detail-value">
+                {selectedTask.description}
+              </span>
             </div>
 
             <div className="task-message-box">
@@ -229,7 +243,7 @@ function Dashboard() {
             </div>
 
             <div className="modal-footer">
-              <button 
+              <button
                 className="approval-button"
                 onClick={handleApprovalRequest}
                 disabled={!approvalMessage.trim()}

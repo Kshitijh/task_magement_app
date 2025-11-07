@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 function Login() {
   const [credentials, setCredentials] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCredentials(prev => ({
+    setCredentials((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     // TODO: Implement login logic here
-    console.log('Login attempt:', credentials);
+    console.log("Login attempt:", credentials);
   };
 
   return (
