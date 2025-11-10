@@ -37,7 +37,7 @@ function Login() {
         localStorage.setItem("user", JSON.stringify(response.data.user));
         
         // Redirect to dashboard
-        navigate("/dashboard");
+        navigate("/");
       }
     } catch (error) {
       setError(error.response?.data?.detail || "Login failed. Please check your credentials.");

@@ -56,7 +56,8 @@ class TaskCreate(TaskBase):
 
 class Task(TaskBase):
     id: str
-    date: datetime
+    start_datetime: datetime
+    end_datetime: datetime
 
 # Authentication helper functions
 def create_access_token(data: dict):
@@ -164,6 +165,8 @@ async def delete_user(user_id: str, current_user: dict = Depends(get_current_use
 @app.get("/tasks", response_model=List[Task])
 async def get_tasks(current_user: dict = Depends(get_current_user)):
     query = {}
+    print(current_user) 
+
     if current_user["role"].lower() == "employee":
         query["empl_name"] = current_user["username"]
     
