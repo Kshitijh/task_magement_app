@@ -212,20 +212,27 @@ function Dashboard() {
         return;
       }
 
-      // Format task data for API
+      // Format task data according to work_log schema
       const taskData = {
         project_ID: newTask.projectCode,
-        work_description: newTask.title + "\n\n" + newTask.description,
+        work_description: newTask.description ? 
+          `${newTask.title}\n\n${newTask.description}` : 
+          newTask.title,
         status: newTask.status,
-        date: newTask.endDateTime,
-        empl_name: newTask.approver,
+        empl_name: newTask.assignedTo, // Person the task is assigned to
+        date: newTask.endDateTime,     // Due date
+        start_date: newTask.startDateTime,
+        end_date: newTask.endDateTime,
         priority: newTask.priority,
-        assigned_to: newTask.assignedTo,
-        start_datetime: newTask.startDateTime,
-        end_datetime: newTask.endDateTime
+        approver: newTask.approver,    // Admin who will approve the task
+        assigned_by: currentUser.username, // Current user who is creating the task
+        created_at: new Date().toISOString()
       };
 
+      // Send to API
       await api.post('/tasks', taskData);
+      
+      // Refresh task list and reset form
       await fetchTasks();
       setIsAddTaskModalOpen(false);
       setNewTask({
@@ -239,9 +246,12 @@ function Dashboard() {
         priority: "Medium",
         description: ""
       });
+
+      // Show success message
+      alert('Task created successfully!');
     } catch (error) {
       console.error('Error adding task:', error);
-      alert(error.response?.data?.message || 'Error adding task');
+      alert(error.response?.data?.message || 'Error creating task. Please try again.');
     }
   };
 
@@ -527,7 +537,7 @@ const handleDeleteTask = async (taskId) => {
               onChange={(e) => setNewTask({...newTask, approver: e.target.value})}
               required
             >
-              <option value="">Select an approver (Admin)</option>
+              <option value="">Select an approver</option>
               {approvers.map(user => (
                 <option key={user.id} value={user.name}>
                   {user.name} ({user.role})
@@ -576,7 +586,15 @@ const handleDeleteTask = async (taskId) => {
             <button
               className="add-task-button"
               onClick={handleAddTask}
-              disabled={!newTask.title || !newTask.endDateTime || !newTask.approver}
+              disabled={
+                !newTask.projectCode || 
+                !newTask.title || 
+                !newTask.startDateTime || 
+                !newTask.endDateTime || 
+                !newTask.approver || 
+                !newTask.assignedTo ||
+                !newTask.description
+              }
             >
               Add Task
             </button>
