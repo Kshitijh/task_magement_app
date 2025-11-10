@@ -20,8 +20,9 @@ function Dashboard() {
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [approvers, setApprovers] = useState([]);
+  const [assignees, setAssignees] = useState([]);
   // const [searchTerm, setSearchTerm] = useState("");
-
 
   // Setup axios instance with authentication
   const api = axios.create({
@@ -38,10 +39,10 @@ function Dashboard() {
       return;
     }
     setCurrentUser(user);
+    
+    // Always fetch users to populate dropdowns, even for non-admin users
+    fetchUsers();
     fetchTasks();
-    if (user.role.toLowerCase() === 'admin') {
-      fetchUsers();
-    }
   }, []);
   const [newUser, setNewUser] = useState({
     username: "",
@@ -90,14 +91,27 @@ function Dashboard() {
   const fetchUsers = async () => {
     try {
       const response = await api.get('/users');
-      setUsers(response.data.map(user => ({
+      const usersList = response.data.map(user => ({
         id: user.id,
         name: user.username,
         email: user.Email,
         role: user.role
-      })));
+      }));
+      setUsers(usersList);
+      
+      // Filter users based on their roles from user_cred table
+      setApprovers(usersList.filter(user => user.role.toLowerCase() === 'admin'));
+      setAssignees(usersList.filter(user => user.role.toLowerCase() === 'member' || user.role.toLowerCase() === 'employee'));
+      
+      // Make sure to fetch users when component mounts
+      if (currentUser?.role.toLowerCase() === 'admin') {
+        fetchUsers();
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
+      if (error.response?.status === 401) {
+        navigate('/login');
+      }
     }
   };
 
@@ -183,17 +197,35 @@ function Dashboard() {
 
   const handleAddTask = async () => {
     try {
-      await api.post('/tasks', {
+      // Validate required fields
+      if (!newTask.projectCode || !newTask.title || !newTask.startDateTime || 
+          !newTask.endDateTime || !newTask.approver || !newTask.assignedTo) {
+        alert('Please fill in all required fields');
+        return;
+      }
+
+      // Validate dates
+      const startDate = new Date(newTask.startDateTime);
+      const endDate = new Date(newTask.endDateTime);
+      if (endDate < startDate) {
+        alert('End date cannot be before start date');
+        return;
+      }
+
+      // Format task data for API
+      const taskData = {
         project_ID: newTask.projectCode,
         work_description: newTask.title + "\n\n" + newTask.description,
-        status: "Pending",
+        status: newTask.status,
         date: newTask.endDateTime,
         empl_name: newTask.approver,
         priority: newTask.priority,
         assigned_to: newTask.assignedTo,
-        start_date: newTask.startDateTime
-      });
-      
+        start_datetime: newTask.startDateTime,
+        end_datetime: newTask.endDateTime
+      };
+
+      await api.post('/tasks', taskData);
       await fetchTasks();
       setIsAddTaskModalOpen(false);
       setNewTask({
@@ -231,12 +263,23 @@ function Dashboard() {
   };
 const handleUpdateTaskStatus = async (taskId, newStatus) => {
   try {
-    await api.put(`/tasks/${taskId}`, { status: newStatus });
-    setTasks(tasks.map(task =>
-      task.id === taskId ? { ...task, status: newStatus } : task
-    ));
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    await api.put(`/tasks/${taskId}`, {
+      project_ID: task.projectCode,
+      work_description: task.title,
+      empl_name: task.approver,
+      status: newStatus
+    });
+    
+    await fetchTasks(); // Refresh tasks from server
   } catch (error) {
-    console.error("Error updating task status:", error);
+    console.error('Error updating task:', error);
+    alert(error.response?.data?.message || 'Error updating task status');
+    await fetchTasks(); // Refresh to ensure UI shows correct state
   }
 };
 
@@ -430,7 +473,7 @@ const handleDeleteTask = async (taskId) => {
               id="projectCode"
               value={newTask.projectCode}
               onChange={(e) => setNewTask({...newTask, projectCode: e.target.value})}
-              placeholder="e.g., FE-001, BE-001"
+              placeholder="e.g., UAPR-001, UAPR-002"
               required
             />
           </div>
@@ -484,9 +527,11 @@ const handleDeleteTask = async (taskId) => {
               onChange={(e) => setNewTask({...newTask, approver: e.target.value})}
               required
             >
-              <option value="">Select an approver</option>
-              {users.map(user => (
-                <option key={user.id} value={user.name}>{user.name}</option>
+              <option value="">Select an approver (Admin)</option>
+              {approvers.map(user => (
+                <option key={user.id} value={user.name}>
+                  {user.name} ({user.role})
+                </option>
               ))}
             </select>
           </div>
@@ -498,9 +543,11 @@ const handleDeleteTask = async (taskId) => {
               onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
               required
             >
-              <option value="">Select a user</option>
-              {users.map(user => (
-                <option key={user.id} value={user.name}>{user.name}</option>
+              <option value="">Select a team member</option>
+              {assignees.map(user => (
+                <option key={user.id} value={user.name}>
+                  {user.name} ({user.role})
+                </option>
               ))}
             </select>
           </div>

@@ -107,8 +107,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 # User endpoints
 @app.get("/users", response_model=List[User])
 async def get_users(current_user: dict = Depends(get_current_user)):
-    if current_user["role"].lower() != "admin":
-        raise HTTPException(status_code=403, detail="Not authorized to view users")
+
     users = list(db.user_cred.find({}, {"password_hash": 0}))
     for user in users:
         user["id"] = str(user.pop("_id"))
