@@ -114,10 +114,6 @@ function Dashboard() {
       setApprovers(usersList.filter(user => user.role.toLowerCase() === 'admin'));
       setAssignees(usersList.filter(user => user.role.toLowerCase() === 'member' || user.role.toLowerCase() === 'employee'));
       
-      // Make sure to fetch users when component mounts
-      if (currentUser?.role.toLowerCase() === 'admin') {
-        fetchUsers();
-      }
     } catch (error) {
       console.error('Error fetching users:', error);
       if (error.response?.status === 401) {
@@ -170,27 +166,73 @@ function Dashboard() {
 
   const handleEditUser = (user) => {
     setSelectedUser({
-      ...user,
+      id: user.id,
       username: user.name,
-      password: "" // We don't show existing password
+      email: user.email,
+      role: user.role,
+      password: "", // We don't show existing password
+      // Store original values for comparison
+      originalUsername: user.name,
+      originalEmail: user.email,
+      originalRole: user.role
     });
     setIsEditUserModalOpen(true);
   };
 
   const handleUpdateUser = async () => {
     try {
-      await api.put(`/users/${selectedUser.id}`, {
-        username: selectedUser.username,
-        Email: selectedUser.email,
-        password: selectedUser.password || undefined, // Only send if changed
-        role: selectedUser.role
-      });
-      await fetchUsers();
-      setIsEditUserModalOpen(false);
-      setSelectedUser(null);
+      if (!selectedUser) {
+        throw new Error("No user selected for update");
+      }
+
+      // Start with empty update data
+      const updateData = {};
+
+      // Track what fields are being updated for the confirmation message
+      const updatedFields = [];
+
+      // Check each field and only include changed ones
+      if (selectedUser.username !== selectedUser.originalUsername && selectedUser.username) {
+        updateData.username = selectedUser.username;
+        updatedFields.push("username");
+      }
+      
+      if (selectedUser.email !== selectedUser.originalEmail && selectedUser.email) {
+        updateData.Email = selectedUser.email;
+        updatedFields.push("email");
+      }
+      
+      if (selectedUser.role !== selectedUser.originalRole && selectedUser.role) {
+        updateData.role = selectedUser.role;
+        updatedFields.push("role");
+      }
+
+      // Only include password if it was entered
+      if (selectedUser.password && selectedUser.password.trim() !== "") {
+        updateData.password = selectedUser.password;
+        updatedFields.push("password");
+      }
+
+      // Only make the API call if there are changes to update
+      if (Object.keys(updateData).length > 0) {
+        // Show confirmation with specific fields being updated
+        const confirmMessage = `Are you sure you want to update the following fields: ${updatedFields.join(", ")}?`;
+        
+        if (window.confirm(confirmMessage)) {
+          console.log("Updating user with data:", updateData); // Debug log
+          await api.put(`/users/${selectedUser.id}`, updateData);
+          await fetchUsers();
+          setIsEditUserModalOpen(false);
+          setSelectedUser(null);
+          alert("User updated successfully!");
+        }
+      } else {
+        alert("No changes detected");
+      }
     } catch (error) {
       console.error('Error updating user:', error);
-      alert(error.response?.data?.message || 'Error updating user');
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Error updating user';
+      alert(errorMessage);
     }
   };
 
@@ -419,9 +461,9 @@ const handleDeleteTask = async (taskId) => {
         </tr>
       </thead>
       <tbody>
-        {rows.map((u) => (
+        {rows.map((u, index) => (
           <tr key={u.id}>
-            <td>{u.id}</td>
+            <td>{index + 1}</td>
             <td>{u.name}</td>
             <td>{u.email}</td>
             <td>{u.role}</td>
@@ -794,41 +836,77 @@ const handleDeleteTask = async (taskId) => {
               <input
                 type="text"
                 id="edit-username"
-                value={selectedUser.username}
-                onChange={(e) => setSelectedUser({...selectedUser, username: e.target.value})}
+                value={selectedUser.username || ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  setSelectedUser({
+                    ...selectedUser,
+                    username: value
+                  });
+                }}
                 required
               />
+              {selectedUser.username !== selectedUser.originalUsername && selectedUser.username && (
+                <small style={{ color: 'blue' }}>Username will be updated</small>
+              )}
             </div>
             <div className="task-form-row">
               <label htmlFor="edit-email">Email ID:</label>
               <input
                 type="email"
                 id="edit-email"
-                value={selectedUser.email}
-                onChange={(e) => setSelectedUser({...selectedUser, email: e.target.value})}
+                value={selectedUser.email || ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  setSelectedUser({
+                    ...selectedUser,
+                    email: value
+                  });
+                }}
                 required
               />
+              {selectedUser.email !== selectedUser.originalEmail && selectedUser.email && (
+                <small style={{ color: 'blue' }}>Email will be updated</small>
+              )}
             </div>
             <div className="task-form-row">
               <label htmlFor="edit-password">New Password:</label>
               <input
                 type="password"
                 id="edit-password"
-                value={selectedUser.password}
-                onChange={(e) => setSelectedUser({...selectedUser, password: e.target.value})}
+                value={selectedUser.password || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedUser({
+                    ...selectedUser,
+                    password: value
+                  });
+                }}
                 placeholder="Leave blank to keep current password"
               />
+              {selectedUser.password && (
+                <small style={{ color: 'blue' }}>Password will be updated</small>
+              )}
             </div>
             <div className="task-form-row">
               <label htmlFor="edit-role">Role:</label>
               <select
                 id="edit-role"
-                value={selectedUser.role}
-                onChange={(e) => setSelectedUser({...selectedUser, role: e.target.value})}
+                value={selectedUser.role || 'Member'}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSelectedUser({
+                    ...selectedUser,
+                    role: value
+                  });
+                }}
               >
                 <option value="Member">Member</option>
                 <option value="Admin">Admin</option>
               </select>
+              {selectedUser.role !== selectedUser.originalRole && (
+                <small style={{ color: 'blue' }}>Role will be updated</small>
+              )}
             </div>
             <div className="modal-footer">
               <button

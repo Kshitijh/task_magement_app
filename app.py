@@ -42,6 +42,12 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    Email: Optional[str] = None
+    role: Optional[str] = None
+    password: Optional[str] = None
+
 class User(UserBase):
     id: str
 
@@ -132,15 +138,45 @@ async def create_user(user: UserCreate, current_user: dict = Depends(get_current
     return created_user
 
 @app.put("/users/{user_id}", response_model=User)
-async def update_user(user_id: str, user: UserCreate, current_user: dict = Depends(get_current_user)):
+async def update_user(user_id: str, user: UserUpdate, current_user: dict = Depends(get_current_user)):
     if current_user["role"].lower() != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to update users")
     
     from bson.objectid import ObjectId
-    update_data = user.dict(exclude_unset=True)
-    if "password" in update_data:
-        update_data["password_hash"] = hashlib.md5(update_data.pop("password").encode()).hexdigest()
     
+    # Check if user exists
+    existing_user = db.user_cred.find_one({"_id": ObjectId(user_id)})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Start with empty update data
+    update_data = {}
+    
+    # Only include fields that were provided and have non-None values
+    if user.username is not None:
+        update_data["username"] = user.username
+    
+    if user.Email is not None:
+        update_data["Email"] = user.Email
+    
+    if user.role is not None:
+        update_data["role"] = user.role
+    
+    if user.password:  # Only update password if a non-empty string is provided
+        update_data["password_hash"] = hashlib.md5(user.password.encode()).hexdigest()
+    
+    # If no fields to update were provided, return existing user
+    if not update_data:
+        return {
+            "id": str(existing_user["_id"]),
+            "username": existing_user["username"],
+            "Email": existing_user["Email"],
+            "role": existing_user["role"]
+        }
+    
+    print(f"Updating user {user_id} with data:", update_data)  # Debug log
+    
+    # Update user in database
     result = db.user_cred.find_one_and_update(
         {"_id": ObjectId(user_id)},
         {"$set": update_data},
@@ -167,11 +203,14 @@ async def delete_user(user_id: str, current_user: dict = Depends(get_current_use
 @app.get("/tasks", response_model=List[Task])
 async def get_tasks(current_user: dict = Depends(get_current_user)):
     query = {}
-    print(current_user) 
-
-    if current_user["role"].lower() == "employee":
+    
+    # Admin can see all tasks
+    if current_user["role"].lower() != "admin":
+        # Non-admin users can only see tasks assigned to them
         query["assigned_to"] = current_user["username"]
-    print(query)
+        
+    # Optional: Add logging for debugging
+    print(f"User {current_user['username']} with role {current_user['role']} querying tasks with filter: {query}")
     tasks = list(db.work_log.find(query))
     formatted_tasks = []
     for task in tasks:
