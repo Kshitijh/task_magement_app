@@ -46,18 +46,21 @@ class User(UserBase):
     id: str
 
 class TaskBase(BaseModel):
-    project_ID: str
-    work_description: str
-    empl_name: str
+    project_code: str
+    title: str
+    description: str
     status: str
+    start_datetime: datetime
+    end_datetime: datetime
+    approver: str
+    assigned_to: str
+    priority: str
 
 class TaskCreate(TaskBase):
-    pass
+    pass  # All fields are inherited from TaskBase
 
 class Task(TaskBase):
     id: str
-    start_datetime: datetime
-    end_datetime: datetime
 
 # Authentication helper functions
 def create_access_token(data: dict):
@@ -167,42 +170,115 @@ async def get_tasks(current_user: dict = Depends(get_current_user)):
     print(current_user) 
 
     if current_user["role"].lower() == "employee":
-        query["empl_name"] = current_user["username"]
-    
+        query["assigned_to"] = current_user["username"]
+    print(query)
     tasks = list(db.work_log.find(query))
+    formatted_tasks = []
     for task in tasks:
-        task["id"] = str(task.pop("_id"))
-    return tasks
+        # Transform the task data to match the new model
+        formatted_task = {
+            "id": str(task["_id"]),
+            "project_code": task.get("project_code", ""),
+            "title": task.get("title", task.get("work_description", "").split("\n")[0]),
+            "description": task.get("description", task.get("work_description", "")),
+            "status": task.get("status", "Pending"),
+            "start_datetime": task.get("start_datetime", task.get("start_date")),
+            "end_datetime": task.get("end_datetime", task.get("end_date")),
+            "approver": task.get("approver", ""),
+            "assigned_to": task.get("assigned_to", ""),
+            "priority": task.get("priority", "Medium")
+        }
+        formatted_tasks.append(formatted_task)
+    return formatted_tasks
 
 @app.post("/tasks", response_model=Task)
 async def create_task(task: TaskCreate, current_user: dict = Depends(get_current_user)):
-    task_dict = task.dict()
-    task_dict["date"] = datetime.utcnow()
-    result = db.work_log.insert_one(task_dict)
-    created_task = db.work_log.find_one({"_id": result.inserted_id})
-    created_task["id"] = str(created_task.pop("_id"))
-    return created_task
+    try:
+        # Convert the task to dictionary and add metadata
+        task_dict = task.dict()
+        task_dict["created_at"] = datetime.utcnow()
+        task_dict["created_by"] = current_user["username"]
+    
+        # Validate that end_datetime is after start_datetime
+        if task_dict["end_datetime"] <= task_dict["start_datetime"]:
+            raise HTTPException(
+                status_code=400,
+                detail="End datetime must be after start datetime"
+            )
+        
+        # Store the task in the database
+        result = db.work_log.insert_one(task_dict)
+        
+        # Retrieve and format the created task
+        created_task = db.work_log.find_one({"_id": result.inserted_id})
+        formatted_task = {
+            "id": str(created_task["_id"]),
+            "project_code": created_task["project_code"],
+            "title": created_task["title"],
+            "description": created_task["description"],
+            "status": created_task["status"],
+            "start_datetime": created_task["start_datetime"],
+            "end_datetime": created_task["end_datetime"],
+            "approver": created_task["approver"],
+            "assigned_to": created_task["assigned_to"],
+            "priority": created_task["priority"]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return formatted_task
 
 @app.put("/tasks/{task_id}", response_model=Task)
 async def update_task(task_id: str, task: TaskCreate, current_user: dict = Depends(get_current_user)):
     from bson.objectid import ObjectId
-    # Check if user has permission to update this task
+    
+    # Check if task exists
     existing_task = db.work_log.find_one({"_id": ObjectId(task_id)})
     if not existing_task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    if current_user["role"].lower() == "employee" and existing_task["empl_name"] != current_user["username"]:
+    # Check permissions
+    if current_user["role"].lower() == "employee" and existing_task["assigned_to"] != current_user["username"]:
         raise HTTPException(status_code=403, detail="Not authorized to update this task")
     
-    update_data = task.dict(exclude_unset=True)
+    # Get update data, preserving existing values for missing fields
+    update_data = {
+        "project_code": task.project_code or existing_task.get("project_code"),
+        "title": task.title or existing_task.get("title"),
+        "description": task.description or existing_task.get("description"),
+        "status": task.status or existing_task.get("status"),
+        "start_datetime": task.start_datetime or existing_task.get("start_datetime"),
+        "end_datetime": task.end_datetime or existing_task.get("end_datetime"),
+        "approver": task.approver or existing_task.get("approver"),
+        "assigned_to": task.assigned_to or existing_task.get("assigned_to"),
+        "priority": task.priority or existing_task.get("priority"),
+        "updated_at": datetime.utcnow(),
+        "updated_by": current_user["username"]
+    }
+    
+    # Update the task
     result = db.work_log.find_one_and_update(
         {"_id": ObjectId(task_id)},
         {"$set": update_data},
         return_document=True
     )
     
-    result["id"] = str(result.pop("_id"))
-    return result
+    if not result:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Format the response
+    formatted_result = {
+        "id": str(result["_id"]),
+        "project_code": result["project_code"],
+        "title": result["title"],
+        "description": result["description"],
+        "status": result["status"],
+        "start_datetime": result["start_datetime"],
+        "end_datetime": result["end_datetime"],
+        "approver": result["approver"],
+        "assigned_to": result["assigned_to"],
+        "priority": result["priority"]
+    }
+    return formatted_result
 
 @app.delete("/tasks/{task_id}")
 async def delete_task(task_id: str, current_user: dict = Depends(get_current_user)):

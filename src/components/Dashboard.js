@@ -4,6 +4,8 @@ import axios from "axios";
 import Modal from "./Modal";
 import "../App.css";
 
+import './Dashboard.css';
+
 const API_BASE_URL = "http://localhost:8000";
 
 function Dashboard() {
@@ -67,22 +69,31 @@ function Dashboard() {
     try {
       const response = await api.get('/tasks');
       console.log('Response----------------',response);
+      console.log(response.data);
       
-      setTasks(response.data.map(task => ({
+      // Transform the data to match the table structure
+      const transformedTasks = response.data.map(task => ({
         id: task.id,
-        projectCode: task.project_ID,
-        title: task.work_description,
-        status: task.status,
-        due: task.date,
-        description: task.work_description,
-        approver: task.empl_name,
-      })));
+        project_code: task.project_code,
+        title: task.title,
+        status: task.status || "Pending",
+        start_datetime: task.start_datetime,
+        end_datetime: task.end_datetime,
+        description: task.description,
+        approver: task.approver,
+        assigned_to: task.assigned_to,
+        priority: task.priority || "Medium",
+        created_at: task.created_at,
+        created_by: task.created_by
+      }));
+
+      console.log("Transformed tasks:", transformedTasks);
+      setTasks(transformedTasks);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       if (error.response?.status === 401) {
         navigate('/login');
-      
       }
     }
   };
@@ -207,51 +218,49 @@ function Dashboard() {
       // Validate dates
       const startDate = new Date(newTask.startDateTime);
       const endDate = new Date(newTask.endDateTime);
-      if (endDate < startDate) {
-        alert('End date cannot be before start date');
+      if (endDate <= startDate) {
+        alert('End date must be after start date');
         return;
       }
 
-      // Format task data according to work_log schema
+      // Format task data according to backend schema
       const taskData = {
-        project_ID: newTask.projectCode,
-        work_description: newTask.description ? 
-          `${newTask.title}\n\n${newTask.description}` : 
-          newTask.title,
+        project_code: newTask.projectCode,
+        title: newTask.title,
+        description: newTask.description,
         status: newTask.status,
-        empl_name: newTask.assignedTo, // Person the task is assigned to
-        date: newTask.endDateTime,     // Due date
-        start_date: newTask.startDateTime,
-        end_date: newTask.endDateTime,
-        priority: newTask.priority,
-        approver: newTask.approver,    // Admin who will approve the task
-        assigned_by: currentUser.username, // Current user who is creating the task
-        created_at: new Date().toISOString()
+        start_datetime: startDate.toISOString(),
+        end_datetime: endDate.toISOString(),
+        approver: newTask.approver,
+        assigned_to: newTask.assignedTo,
+        priority: newTask.priority
       };
 
       // Send to API
-      await api.post('/tasks', taskData);
+      const response = await api.post('/tasks', taskData);
       
-      // Refresh task list and reset form
-      await fetchTasks();
-      setIsAddTaskModalOpen(false);
-      setNewTask({
-        projectCode: "",
-        title: "",
-        status: "Pending",
-        startDateTime: "",
-        endDateTime: "",
-        approver: "",
-        assignedTo: "",
-        priority: "Medium",
-        description: ""
-      });
+      if (response.status === 200) {
+        // Refresh task list and reset form
+        await fetchTasks();
+        setIsAddTaskModalOpen(false);
+        setNewTask({
+          projectCode: "",
+          title: "",
+          status: "Pending",
+          startDateTime: "",
+          endDateTime: "",
+          approver: "",
+          assignedTo: "",
+          priority: "Medium",
+          description: ""
+        });
 
-      // Show success message
-      alert('Task created successfully!');
+        // Show success message
+        alert('Task created successfully!');
+      }
     } catch (error) {
       console.error('Error adding task:', error);
-      alert(error.response?.data?.message || 'Error creating task. Please try again.');
+      alert(error.response?.data?.detail || 'Failed to add task');
     }
   };
 
@@ -279,16 +288,21 @@ const handleUpdateTaskStatus = async (taskId, newStatus) => {
     }
 
     await api.put(`/tasks/${taskId}`, {
-      project_ID: task.projectCode,
-      work_description: task.title,
-      empl_name: task.approver,
-      status: newStatus
+      project_code: task.project_code,
+      title: task.title,
+      description: task.description,
+      status: newStatus,
+      start_datetime: task.start_datetime,
+      end_datetime: task.end_datetime,
+      approver: task.approver,
+      assigned_to: task.assigned_to,
+      priority: task.priority
     });
     
     await fetchTasks(); // Refresh tasks from server
   } catch (error) {
     console.error('Error updating task:', error);
-    alert(error.response?.data?.message || 'Error updating task status');
+    alert(error.response?.data?.detail || 'Error updating task status');
     await fetchTasks(); // Refresh to ensure UI shows correct state
   }
 };
@@ -341,22 +355,25 @@ const handleDeleteTask = async (taskId) => {
         <tr>
           <th>#</th>
           <th>Project Code</th>
-          <th>Tasks</th>
+          <th>Title</th>
           <th>Status</th>
-          <th>Due</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Assigned To</th>
+          <th>Priority</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr key={r.id}>
-            <td>{r.id}</td>
-            <td>{r.projectCode}</td>
-            <td>{r.title}</td>
+        {rows.map((task,index) => (
+          <tr key={task.id}>
+            <td>{index + 1}</td>
+            <td>{task.project_code}</td>
+            <td>{task.title}</td>
             <td>
               <select
-                value={r.status}
-                onChange={(e) => handleUpdateTaskStatus(r.id, e.target.value)}
+                value={task.status}
+                onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
                 className="status-select"
               >
                 <option value="Pending">Pending</option>
@@ -364,14 +381,21 @@ const handleDeleteTask = async (taskId) => {
                 <option value="Done">Done</option>
               </select>
             </td>
-            <td>{formatDateTime(r.due)}</td>
+            <td>{formatDateTime(task.start_datetime)}</td>
+            <td>{formatDateTime(task.end_datetime)}</td>
+            <td>{task.assigned_to}</td>
             <td>
-              <button className="view-button" onClick={() => handleViewTask(r)}>
+              <span className={`priority-badge ${(task.priority || 'medium').toLowerCase()}`}>
+                {task.priority || 'Medium'}
+              </span>
+            </td>
+            <td>
+              <button className="view-button" onClick={() => handleViewTask(task)}>
                 View
               </button>
               <button 
                 className="delete-button" 
-                onClick={() => handleDeleteTask(r.id)}
+                onClick={() => handleDeleteTask(task.id)}
                 style={{ marginLeft: '8px', backgroundColor: '#dc3545' }}
               >
                 Delete
@@ -466,6 +490,7 @@ const handleDeleteTask = async (taskId) => {
         {loading ? (
           <div>Loading...</div>
         ) : active === "Tasks" ? (
+          
           <TasksTable rows={tasks} />
         ) : (
           <UsersTable rows={users} />
@@ -614,7 +639,7 @@ const handleDeleteTask = async (taskId) => {
           <div className="task-details">
             <div className="task-detail-row">
               <span className="task-detail-label">Project Code:</span>
-              <span className="task-detail-value">{selectedTask.projectCode}</span>
+              <span className="task-detail-value">{selectedTask.project_code}</span>
             </div>
             <div className="task-detail-row">
               <span className="task-detail-label">Title:</span>
@@ -622,11 +647,23 @@ const handleDeleteTask = async (taskId) => {
             </div>
             <div className="task-detail-row">
               <span className="task-detail-label">Status:</span>
-              <span className="task-detail-value">{selectedTask.status}</span>
+              <span className={`task-detail-value task-status status-${selectedTask.status.toLowerCase().replace(' ', '-')}`}>
+                {selectedTask.status}
+              </span>
+            </div>
+            <div className="task-dates">
+              <div className="task-detail-row">
+                <span className="task-detail-label">Start Date:</span>
+                <span className="task-detail-value">{formatDateTime(selectedTask.start_datetime)}</span>
+              </div>
+              <div className="task-detail-row">
+                <span className="task-detail-label">End Date:</span>
+                <span className="task-detail-value">{formatDateTime(selectedTask.end_datetime)}</span>
+              </div>
             </div>
             <div className="task-detail-row">
-              <span className="task-detail-label">Due Date:</span>
-              <span className="task-detail-value">{formatDateTime(selectedTask.due)}</span>
+              <span className="task-detail-label">Assigned To:</span>
+              <span className="task-detail-value">{selectedTask.assigned_to}</span>
             </div>
             <div className="task-detail-row">
               <span className="task-detail-label">Approver:</span>
@@ -634,14 +671,28 @@ const handleDeleteTask = async (taskId) => {
             </div>
             <div className="task-detail-row">
               <span className="task-detail-label">Priority:</span>
-              <span className="task-detail-value">{selectedTask.priority}</span>
+              <span className={`task-detail-value priority-badge ${selectedTask.priority.toLowerCase()}`}>
+                {selectedTask.priority}
+              </span>
             </div>
             <div className="task-detail-row">
               <span className="task-detail-label">Description:</span>
-              <span className="task-detail-value">
+              <div className="task-description">
                 {selectedTask.description}
-              </span>
+              </div>
             </div>
+            {selectedTask.created_by && (
+              <div className="task-detail-row">
+                <span className="task-detail-label">Created By:</span>
+                <span className="task-detail-value">{selectedTask.created_by}</span>
+              </div>
+            )}
+            {selectedTask.created_at && (
+              <div className="task-detail-row">
+                <span className="task-detail-label">Created At:</span>
+                <span className="task-detail-value">{formatDateTime(selectedTask.created_at)}</span>
+              </div>
+            )}
 
             <div className="task-message-box">
               <label className="task-message-label" htmlFor="approval-message">
