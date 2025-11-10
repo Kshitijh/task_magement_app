@@ -378,7 +378,7 @@ const handleDeleteTask = async (taskId) => {
           )}
         </button>
         <button
-          className={`sidebar-button ${active === "Users" ? "active" : ""}`}
+          className={`sidebar-button ${active === "Users" ? "active" : ""} ${currentUser?.role.toLowerCase() !== 'admin' ? 'disabled' : ''}`}
           onClick={() => setActive("Users")}
         >
           Users
