@@ -1,8 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import Modal from "./Modal";
 import "../App.css";
 
+const API_BASE_URL = "http://localhost:8000";
+
 function Dashboard() {
+  const navigate = useNavigate();
   const [active, setActive] = useState("Tasks");
   const [selectedTask, setSelectedTask] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -11,6 +16,33 @@ function Dashboard() {
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [approvalMessage, setApprovalMessage] = useState("");
+  const [tasks, setTasks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  // const [searchTerm, setSearchTerm] = useState("");
+
+
+  // Setup axios instance with authentication
+  const api = axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    }
+  });
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setCurrentUser(user);
+    fetchTasks();
+    if (user.role.toLowerCase() === 'admin') {
+      fetchUsers();
+    }
+  }, []);
   const [newUser, setNewUser] = useState({
     username: "",
     email: "",
@@ -29,9 +61,49 @@ function Dashboard() {
     description: ""
   });
 
+  // Fetch tasks from API
+  const fetchTasks = async () => {
+    try {
+      const response = await api.get('/tasks');
+      console.log('Response----------------',response);
+      
+      setTasks(response.data.map(task => ({
+        id: task.id,
+        projectCode: task.project_ID,
+        title: task.work_description,
+        status: task.status,
+        due: task.date,
+        description: task.work_description,
+        approver: task.empl_name,
+      })));
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      if (error.response?.status === 401) {
+        navigate('/login');
+      
+      }
+    }
+  };
+
+  // Fetch users from API
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/users');
+      setUsers(response.data.map(user => ({
+        id: user.id,
+        name: user.username,
+        email: user.Email,
+        role: user.role
+      })));
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
   // Calculate number of pending tasks
   const getPendingTasksCount = () => {
-    return sampleTasks.filter(
+    return tasks.filter(
       (task) => task.status === "Pending" || task.status === "In Progress"
     ).length;
   };
@@ -40,26 +112,35 @@ function Dashboard() {
     if (active === "Tasks") {
       setIsAddTaskModalOpen(true);
     } else {
+      if (currentUser.role.toLowerCase() !== 'admin') {
+        alert('Only administrators can manage users');
+        return;
+      }
       setIsAddUserModalOpen(true);
     }
   };
 
-  const handleAddUser = () => {
-    // Here you would typically make an API call to save the user
-    console.log("Adding new user:", newUser);
-    const newUserWithId = {
-      ...newUser,
-      id: sampleUsers.length + 1,
-      name: newUser.username, // For consistency with existing data
-    };
-    sampleUsers.push(newUserWithId);
-    setIsAddUserModalOpen(false);
-    setNewUser({
-      username: "",
-      email: "",
-      password: "",
-      role: "Member"
-    });
+  const handleAddUser = async () => {
+    try {
+      await api.post('/users', {
+        username: newUser.username,
+        Email: newUser.email,
+        password: newUser.password,
+        role: newUser.role
+      });
+      
+      await fetchUsers();
+      setIsAddUserModalOpen(false);
+      setNewUser({
+        username: "",
+        email: "",
+        password: "",
+        role: "Member"
+      });
+    } catch (error) {
+      console.error('Error adding user:', error);
+      alert(error.response?.data?.message || 'Error adding user');
+    }
   };
 
   const handleEditUser = (user) => {
@@ -71,132 +152,122 @@ function Dashboard() {
     setIsEditUserModalOpen(true);
   };
 
-  const handleUpdateUser = () => {
-    // Here you would typically make an API call to update the user
-    const userIndex = sampleUsers.findIndex(u => u.id === selectedUser.id);
-    if (userIndex !== -1) {
-      sampleUsers[userIndex] = {
-        ...selectedUser,
-        name: selectedUser.username,
-      };
-    }
-    setIsEditUserModalOpen(false);
-    setSelectedUser(null);
-  };
-
-  const handleDeleteUser = () => {
-    // Here you would typically make an API call to delete the user
-    const userIndex = sampleUsers.findIndex(u => u.id === selectedUser.id);
-    if (userIndex !== -1) {
-      // Remove user from array
-      sampleUsers.splice(userIndex, 1);
-      // Close modal
+  const handleUpdateUser = async () => {
+    try {
+      await api.put(`/users/${selectedUser.id}`, {
+        username: selectedUser.username,
+        Email: selectedUser.email,
+        password: selectedUser.password || undefined, // Only send if changed
+        role: selectedUser.role
+      });
+      await fetchUsers();
       setIsEditUserModalOpen(false);
       setSelectedUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      alert(error.response?.data?.message || 'Error updating user');
     }
   };
 
-  const handleAddTask = () => {
-    // Here you would typically make an API call to save the task
-    console.log("Adding new task:", newTask);
-    const newTaskWithId = {
-      ...newTask,
-      id: sampleTasks.length + 1,
-      due: newTask.endDateTime // Store full date-time
-    };
-    sampleTasks.push(newTaskWithId);
-    setIsAddTaskModalOpen(false);
-    setNewTask({
-      projectCode: "",
-      title: "",
-      status: "Pending",
-      startDateTime: "",
-      endDateTime: "",
-      approver: "",
-      assignedTo: "",
-      priority: "Medium",
-      description: ""
-    });
+  const handleDeleteUser = async () => {
+    try {
+      await api.delete(`/users/${selectedUser.id}`);
+      await fetchUsers();
+      setIsEditUserModalOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert(error.response?.data?.message || 'Error deleting user');
+    }
   };
 
-  const handleApprovalRequest = () => {
-    // placeholder for approval workflow - integrate with backend later
-    console.log("Sending approval request:", {
-      taskId: selectedTask.id,
-      message: approvalMessage,
-    });
-    alert(
-      `Approval requested for task "${selectedTask.title}" with message: ${approvalMessage}`
-    );
-    setIsModalOpen(false);
-    setSelectedTask(null);
-    setApprovalMessage("");
+  const handleAddTask = async () => {
+    try {
+      await api.post('/tasks', {
+        project_ID: newTask.projectCode,
+        work_description: newTask.title + "\n\n" + newTask.description,
+        status: "Pending",
+        date: newTask.endDateTime,
+        empl_name: newTask.approver,
+        priority: newTask.priority,
+        assigned_to: newTask.assignedTo,
+        start_date: newTask.startDateTime
+      });
+      
+      await fetchTasks();
+      setIsAddTaskModalOpen(false);
+      setNewTask({
+        projectCode: "",
+        title: "",
+        status: "Pending",
+        startDateTime: "",
+        endDateTime: "",
+        approver: "",
+        assignedTo: "",
+        priority: "Medium",
+        description: ""
+      });
+    } catch (error) {
+      console.error('Error adding task:', error);
+      alert(error.response?.data?.message || 'Error adding task');
+    }
   };
+
+  const handleApprovalRequest = async () => {
+    try {
+      await api.post(`/tasks/${selectedTask.id}/approve`, {
+        message: approvalMessage,
+        status: 'Approved'
+      });
+      await fetchTasks();
+      alert('Task approval request sent successfully!');
+      setIsModalOpen(false);
+      setSelectedTask(null);
+      setApprovalMessage("");
+    } catch (error) {
+      console.error('Error sending approval:', error);
+      alert(error.response?.data?.message || 'Error sending approval request');
+    }
+  };
+const handleUpdateTaskStatus = async (taskId, newStatus) => {
+  try {
+    await api.put(`/tasks/${taskId}`, { status: newStatus });
+    setTasks(tasks.map(task =>
+      task.id === taskId ? { ...task, status: newStatus } : task
+    ));
+  } catch (error) {
+    console.error("Error updating task status:", error);
+  }
+};
+
+const handleDeleteTask = async (taskId) => {
+  try {
+    await api.delete(`/tasks/${taskId}`);
+    setTasks(tasks.filter(task => task.id !== taskId));
+  } catch (error) {
+    console.error("Error deleting task:", error);
+  }
+};
 
   const handleViewTask = (task) => {
     setSelectedTask(task);
     setIsModalOpen(true);
   };
 
-  // sample data — replace with real data later
-  const sampleTasks = [
-    {
-      id: 1,
-      projectCode: "UAPR-001",
-      title: "Design homepage",
-      status: "In Progress",
-      due: "2025-11-10T14:30",
-      description:
-        "Create a responsive homepage design with modern UI elements",
-      approver: "Kshitij Hupare",
-      priority: "High",
-    },
-    {
-      id: 2,
-      projectCode: "UAPR-002",
-      title: "Implement auth",
-      status: "Pending",
-      due: "2025-11-15T16:00",
-      description: "Implement user authentication using JWT tokens",
-      approver: "Sagar Thorat",
-      priority: "Medium",
-    },
-    {
-      id: 3,
-      projectCode: "UAPR-003",
-      title: "Write tests",
-      status: "Done",
-      due: "2025-11-01T10:00",
-      description: "Write unit and integration tests for core features",
-      approver: "Carol Lee",
-      priority: "Low",
-    },
-  ];
+  // // Filter tasks based on search input
+  // const filteredTasks = tasks.filter(task =>
+  //   task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //   task.projectCode.toLowerCase().includes(searchTerm.toLowerCase())
+  // );
 
-  const sampleUsers = [
-    {
-      id: 1,
-      name: "Kshitij Hupare",
-      email: "kshitij@example.com",
-      role: "Admin",
-    },
-    {
-      id: 2,
-      name: "Sagar Thorath",
-      email: "sagar@example.com",
-      role: "Member",
-    },
-    { id: 3, name: "Tony Stark", email: "tony@example.com", role: "Member" },
-  ];
+  // // Filter users based on search input
+  // const filteredUsers = users.filter(user =>
+  //   user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //   user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  // );
 
-  // Determine username: prefer localStorage (set by a login flow),
-  // otherwise fall back to the first sample user, otherwise 'Guest'.
-  const storedUser =
-    typeof window !== "undefined"
-      ? window.localStorage.getItem("username")
-      : null;
-  const username =
-    storedUser || (sampleUsers[0] && sampleUsers[0].name) || "Guest";
+  // Get username from current user object
+  const username = currentUser?.username || "Guest";
 
   const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return '';
@@ -220,7 +291,7 @@ function Dashboard() {
           <th>Tasks</th>
           <th>Status</th>
           <th>Due</th>
-          <th>Action</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -229,11 +300,28 @@ function Dashboard() {
             <td>{r.id}</td>
             <td>{r.projectCode}</td>
             <td>{r.title}</td>
-            <td>{r.status}</td>
+            <td>
+              <select
+                value={r.status}
+                onChange={(e) => handleUpdateTaskStatus(r.id, e.target.value)}
+                className="status-select"
+              >
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Done">Done</option>
+              </select>
+            </td>
             <td>{formatDateTime(r.due)}</td>
             <td>
               <button className="view-button" onClick={() => handleViewTask(r)}>
                 View
+              </button>
+              <button 
+                className="delete-button" 
+                onClick={() => handleDeleteTask(r.id)}
+                style={{ marginLeft: '8px', backgroundColor: '#dc3545' }}
+              >
+                Delete
               </button>
             </td>
           </tr>
@@ -296,14 +384,12 @@ function Dashboard() {
           Users
         </button>
         <div className="sidebar-spacer"></div>
-        <button
+          <button
           className="logout-button"
           onClick={() => {
-            // Here you would typically handle logout logic
-            console.log('Logging out...');
-            // For demo purposes, you might want to clear localStorage
-            localStorage.removeItem('username');
-            // Redirect to login page or handle logout as needed
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            navigate('/login');
           }}
         >
           Logout
@@ -314,20 +400,24 @@ function Dashboard() {
         <div className="table-toolbar">
           <div className="table-title">{active}</div>
           <div className="table-actions">
-            <button className="edit-button" onClick={handleEdit}>
-              {active === "Tasks" ? "Add Tasks" : "Add Users"}
-            </button>
+            {loading ? (
+              <div>Loading...</div>
+            ) : (
+              <button className="edit-button" onClick={handleEdit}>
+                {active === "Tasks" ? "Add Tasks" : "Add Users"}
+              </button>
+            )}
           </div>
         </div>
 
-        {active === "Tasks" ? (
-          <TasksTable rows={sampleTasks} />
+        {loading ? (
+          <div>Loading...</div>
+        ) : active === "Tasks" ? (
+          <TasksTable rows={tasks} />
         ) : (
-          <UsersTable rows={sampleUsers} />
+          <UsersTable rows={users} />
         )}
-      </main>
-
-      <Modal
+      </main>      <Modal
         isOpen={isAddTaskModalOpen}
         onClose={() => setIsAddTaskModalOpen(false)}
         title="Add New Task"
@@ -395,7 +485,7 @@ function Dashboard() {
               required
             >
               <option value="">Select an approver</option>
-              {sampleUsers.map(user => (
+              {users.map(user => (
                 <option key={user.id} value={user.name}>{user.name}</option>
               ))}
             </select>
@@ -409,7 +499,7 @@ function Dashboard() {
               required
             >
               <option value="">Select a user</option>
-              {sampleUsers.map(user => (
+              {users.map(user => (
                 <option key={user.id} value={user.name}>{user.name}</option>
               ))}
             </select>
