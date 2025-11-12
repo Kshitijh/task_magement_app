@@ -67,19 +67,22 @@ input:focus {
 .dashboard-root {
   display: flex;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
-  width: 220px;
+  width: 12%;
   background: #1f2937; /* gray-800 */
   color: #fff;
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  position: relative;
-  min-height: 90vh;
-  max-height: 99vh;
+  gap: 1rem;
+  position: fixed;
+  bottom: 0;
+  height: 97%;
+  overflow-y: auto;
+  z-index: 100;
 }
 
 .sidebar-spacer {
@@ -183,22 +186,38 @@ input:focus {
 
 .content {
   flex: 1;
+  margin-left: 13.5%;
   padding: 2rem;
   background: #f8fafc; /* light background */
+  
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Table styles used by Dashboard */
+.table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  max-height: calc(100vh - 150px);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
   background: #ffffff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .table thead {
   background: #f1f5f9; /* light gray */
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .table th,
@@ -227,6 +246,7 @@ input:focus {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
 .table-title {
@@ -266,14 +286,19 @@ input:focus {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  overflow-y: auto;
+  padding: 2rem 0;
 }
 
 .modal-content {
   background: white;
   border-radius: 8px;
-  width: 50%;
+  width: 90%;
   max-width: 600px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin: auto;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -515,3 +540,4 @@ input:focus {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+

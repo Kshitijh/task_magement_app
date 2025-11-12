@@ -531,11 +531,14 @@ const handleDeleteTask = async (taskId) => {
 
         {loading ? (
           <div>Loading...</div>
-        ) : active === "Tasks" ? (
-          
-          <TasksTable rows={tasks} />
         ) : (
-          <UsersTable rows={users} />
+          <div className="table-wrapper">
+            {active === "Tasks" ? (
+              <TasksTable rows={tasks} />
+            ) : (
+              <UsersTable rows={users} />
+            )}
+          </div>
         )}
       </main>      <Modal
         isOpen={isAddTaskModalOpen}
