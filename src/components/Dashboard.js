@@ -431,7 +431,7 @@ const handleDeleteTask = async (taskId) => {
                 {task.priority || 'Medium'}
               </span>
             </td>
-            <td>
+            <td className="actionbutton">
               <button className="view-button" onClick={() => handleViewTask(task)}>
                 View
               </button>
