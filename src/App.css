@@ -11,9 +11,11 @@
   min-height: 100vh;
   background-color: #f5f5f5;
 }
-.disabled{
+
+.disabled {
   display: none !important;
 }
+
 .login-box {
   background-color: white;
   padding: 2rem;
@@ -72,7 +74,8 @@ input:focus {
 
 .sidebar {
   width: 12%;
-  background: #1f2937; /* gray-800 */
+  background: #1f2937;
+  /* gray-800 */
   color: #fff;
   padding: 1rem;
   display: flex;
@@ -132,14 +135,16 @@ input:focus {
 
 .sidebar-subtitle {
   font-size: 1.5rem;
-  color: #94a3b8; /* gray-400 */
+  color: #94a3b8;
+  /* gray-400 */
   padding-left: 0.75rem;
   margin-bottom: 1rem;
 }
 
 .sidebar-button {
   background: transparent;
-  color: #cbd5e1; /* gray-300 */
+  color: #cbd5e1;
+  /* gray-300 */
   border: none;
   text-align: left;
   padding: 0.6rem 0.75rem;
@@ -153,7 +158,8 @@ input:focus {
 }
 
 .notification-badge {
-  background: #ef4444; /* red-500 */
+  background: #ef4444;
+  /* red-500 */
   color: white;
   border-radius: 999px;
   padding: 0.15rem 0.4rem;
@@ -169,6 +175,7 @@ input:focus {
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.7;
   }
@@ -180,7 +187,8 @@ input:focus {
 }
 
 .sidebar-button.active {
-  background: #374861; /* blue-600 */
+  background: #374861;
+  /* blue-600 */
   color: #fff;
 }
 
@@ -188,11 +196,19 @@ input:focus {
   flex: 1;
   margin-left: 13.5%;
   padding: 2rem;
-  background: #f8fafc; /* light background */
-  
+  background: #f8fafc;
+  /* light background */
+  font-size: 95%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.status-select {
+  padding: 5%;
+  border-radius: 15px;
+  border: 1px solid #000000;
+  font-size: 95%;
 }
 
 /* Table styles used by Dashboard */
@@ -214,7 +230,8 @@ input:focus {
 }
 
 .table thead {
-  background: #f1f5f9; /* light gray */
+  background: #f1f5f9;
+  /* light gray */
   position: sticky;
   top: 0;
   z-index: 10;
@@ -261,7 +278,8 @@ input:focus {
 }
 
 .edit-button {
-  background: #7b7b7bdb; /* orange-500 */
+  background: #7b7b7bdb;
+  /* orange-500 */
   color: #fff;
   border: none;
   padding: 0.5rem 0.75rem;
@@ -271,7 +289,8 @@ input:focus {
 }
 
 .edit-button:hover {
-  background: #059669; /* green-600 */
+  background: #059669;
+  /* green-600 */
 }
 
 /* Modal styles */
@@ -332,34 +351,28 @@ input:focus {
   padding: 1rem;
 }
 
-/* View button styles */
-.view-button {
-  background: #7b7b7bdb;
-  color: white;
-  border: none;
+/* View and Delete button styles */
+.view-button,
+.delete-button {
+  margin-left: 0.5rem;
   padding: 0.4rem 0.75rem;
-  border-radius: 4px;
+  border-radius: 5px;
+  font-size: 95%;
   cursor: pointer;
-  font-size: 0.875rem;
+  border: none;
   transition: background-color 0.2s;
+  color: white;
+  background: #7b7b7bdb;
 }
 
 .view-button:hover {
   background: #2563eb;
 }
-.delete-button {
-  background: #7b7b7bdb;
-  color: white;
-  border: none;
-  padding: 0.4rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
-}
+
 .delete-button:hover {
   background: #b91c1c;
 }
+
 /* Task details styles */
 .task-details {
   display: grid;
@@ -540,4 +553,3 @@ input:focus {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
-
