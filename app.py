@@ -68,15 +68,8 @@ class TaskCreate(TaskBase):
 class Task(TaskBase):
     id: str
 
-class ApprovalRequest(BaseModel):
+class ChatMessage(BaseModel):
     message: str
-    status: str = "Pending Approval"
-
-class ApprovalResponse(BaseModel):
-    approved: bool
-    approved_by: str
-    approved_at: datetime
-    approval_message: Optional[str] = None
 
 # Authentication helper functions
 def create_access_token(data: dict):
@@ -350,9 +343,9 @@ async def delete_task(task_id: str, current_user: dict = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "Task deleted successfully"}
 
-# Approval endpoints
-@app.post("/tasks/{task_id}/request-approval")
-async def request_approval(task_id: str, approval: ApprovalRequest, current_user: dict = Depends(get_current_user)):
+# Chat endpoints
+@app.post("/tasks/{task_id}/messages")
+async def send_message(task_id: str, chat_message: ChatMessage, current_user: dict = Depends(get_current_user)):
     from bson.objectid import ObjectId
     
     # Get the task
@@ -360,28 +353,27 @@ async def request_approval(task_id: str, approval: ApprovalRequest, current_user
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    # Update task with approval request - write to description
-    update_data = {
-        "approval_status": "Pending Approval",
-        "description": approval.message,
-        "approval_requested_by": current_user["username"],
-        "approval_requested_at": datetime.utcnow(),
-        "status": approval.status
+    # Create message object
+    message = {
+        "message": chat_message.message,
+        "sender": current_user["username"],
+        "timestamp": datetime.utcnow()
     }
     
+    # Add message to task's chat array
     db.work_log.update_one(
         {"_id": ObjectId(task_id)},
-        {"$set": update_data}
+        {"$push": {"chat_messages": message}}
     )
     
     return {
-        "message": "Approval request sent successfully",
-        "approver": task.get("approver", ""),
-        "task_id": task_id
+        "message": "Message sent successfully",
+        "sender": current_user["username"],
+        "timestamp": message["timestamp"]
     }
 
-@app.post("/tasks/{task_id}/approve")
-async def approve_task(task_id: str, approval_message: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+@app.get("/tasks/{task_id}/messages")
+async def get_messages(task_id: str, current_user: dict = Depends(get_current_user)):
     from bson.objectid import ObjectId
     
     # Get the task
@@ -389,61 +381,9 @@ async def approve_task(task_id: str, approval_message: Optional[str] = None, cur
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    # Check if current user is the approver
-    if task.get("approver") != current_user["username"]:
-        raise HTTPException(status_code=403, detail="Only the assigned approver can approve this task")
-    
-    # Update task with approval
-    update_data = {
-        "approval_status": "Approved",
-        "approved_by": current_user["username"],
-        "approved_at": datetime.utcnow(),
-        "status": "Approved"
-    }
-    
-    db.work_log.update_one(
-        {"_id": ObjectId(task_id)},
-        {"$set": update_data}
-    )
-    
-    return {
-        "message": "Task approved successfully",
-        "approved_by": current_user["username"],
-        "approved_at": datetime.utcnow()
-    }
-
-@app.post("/tasks/{task_id}/reject")
-async def reject_task(task_id: str, rejection_message: str, current_user: dict = Depends(get_current_user)):
-    from bson.objectid import ObjectId
-    
-    # Get the task
-    task = db.work_log.find_one({"_id": ObjectId(task_id)})
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    # Check if current user is the approver
-    if task.get("approver") != current_user["username"]:
-        raise HTTPException(status_code=403, detail="Only the assigned approver can reject this task")
-    
-    # Update task with rejection
-    update_data = {
-        "approval_status": "Rejected",
-        "rejected_by": current_user["username"],
-        "rejected_at": datetime.utcnow(),
-        "rejection_message": rejection_message,
-        "status": "Rejected"
-    }
-    
-    db.work_log.update_one(
-        {"_id": ObjectId(task_id)},
-        {"$set": update_data}
-    )
-    
-    return {
-        "message": "Task rejected",
-        "rejected_by": current_user["username"],
-        "rejected_at": datetime.utcnow()
-    }
+    # Return chat messages
+    messages = task.get("chat_messages", [])
+    return messages
 
 if __name__ == "__main__":
     import uvicorn

@@ -5,6 +5,7 @@ import Modal from "./Modal";
 import "../App.css";
 
 import './Dashboard.css';
+import './Chat.css';
 
 const API_BASE_URL = "http://localhost:8000";
 
@@ -17,7 +18,8 @@ function Dashboard() {
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [approvalMessage, setApprovalMessage] = useState("");
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatMessages, setChatMessages] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -84,12 +86,7 @@ function Dashboard() {
         assigned_to: task.assigned_to,
         priority: task.priority || "Medium",
         created_at: task.created_at,
-        created_by: task.created_by,
-        approval_status: task.approval_status,
-        approval_requested_by: task.approval_requested_by,
-        approval_requested_at: task.approval_requested_at,
-        approved_by: task.approved_by,
-        approved_at: task.approved_at,
+        created_by: task.created_by
       }));
 
       console.log("Transformed tasks:", transformedTasks);
@@ -311,54 +308,34 @@ function Dashboard() {
     }
   };
 
-  const handleApprovalRequest = async () => {
+  const fetchChatMessages = async (taskId) => {
     try {
-      if (!approvalMessage.trim()) {
-        alert('Please enter a message for the approval request');
-        return;
-      }
-
-      await api.post(`/tasks/${selectedTask.id}/request-approval`, {
-        message: approvalMessage,
-        status: 'Pending Approval'
-      });
-      
-      await fetchTasks();
-      alert('Approval request sent successfully to ' + selectedTask.approver + '!');
-      setIsModalOpen(false);
-      setSelectedTask(null);
-      setApprovalMessage("");
+      const response = await api.get(`/tasks/${taskId}/messages`);
+      setChatMessages(response.data || []);
     } catch (error) {
-      console.error('Error sending approval request:', error);
-      alert(error.response?.data?.detail || 'Error sending approval request');
+      console.error('Error fetching chat messages:', error);
     }
   };
 
-  const handleApproveTask = async () => {
+  const handleSendMessage = async () => {
     try {
-      // Check if current user is the approver
-      if (currentUser.username !== selectedTask.approver) {
-        alert('Only the assigned approver can approve this task');
+      if (!chatMessage.trim()) {
+        alert('Please enter a message');
         return;
       }
 
-      const confirmApprove = window.confirm('Are you sure you want to approve this task?');
-      if (!confirmApprove) return;
-
-      await api.post(`/tasks/${selectedTask.id}/approve`, null, {
-        params: { approval_message: approvalMessage }
+      await api.post(`/tasks/${selectedTask.id}/messages`, {
+        message: chatMessage
       });
       
-      await fetchTasks();
-      alert('Task approved successfully!');
-      setIsModalOpen(false);
-      setSelectedTask(null);
-      setApprovalMessage("");
+      setChatMessage("");
+      await fetchChatMessages(selectedTask.id);
     } catch (error) {
-      console.error('Error approving task:', error);
-      alert(error.response?.data?.detail || 'Error approving task');
+      console.error('Error sending message:', error);
+      alert(error.response?.data?.detail || 'Error sending message');
     }
   };
+
 const handleUpdateTaskStatus = async (taskId, newStatus) => {
   try {
     const task = tasks.find(t => t.id === taskId);
@@ -398,6 +375,7 @@ const handleDeleteTask = async (taskId) => {
   const handleViewTask = (task) => {
     setSelectedTask(task);
     setIsModalOpen(true);
+    fetchChatMessages(task.id);
   };
 
   // // Filter tasks based on search input
@@ -775,59 +753,43 @@ const handleDeleteTask = async (taskId) => {
                 <span className="task-detail-value">{formatDateTime(selectedTask.created_at)}</span>
               </div>
             )}
-            {selectedTask.approval_status && (
-              <div className="task-detail-row">
-                <span className="task-detail-label">Approval Status:</span>
-                <span className={`task-detail-value ${
-                  selectedTask.approval_status === 'Approved' ? 'status-approved' : 
-                  selectedTask.approval_status === 'Rejected' ? 'status-rejected' : 
-                  'status-pending'
-                }`}>
-                  {selectedTask.approval_status}
-                </span>
-              </div>
-            )}
-            {selectedTask.approved_by && (
-              <div className="task-detail-row">
-                <span className="task-detail-label">Approved By:</span>
-                <span className="task-detail-value">{selectedTask.approved_by}</span>
-              </div>
-            )}
 
-            <div className="task-message-box">
-              <label className="task-message-label" htmlFor="approval-message">
-                {currentUser?.username === selectedTask.approver ? 
-                  'Approval Response Message (Optional)' : 
-                  'Message'}
-              </label>
-              <textarea
-                id="approval-message"
-                className="task-message-input"
-                value={approvalMessage}
-                onChange={(e) => setApprovalMessage(e.target.value)}
-                placeholder={currentUser?.username === selectedTask.approver ?
-                  'Add any comments or feedback for the approval...' :
-                  'Add any additional comments or context for the approval request...'}
-              />
-            </div>
-
-            <div className="modal-footer">
-              {currentUser?.username === selectedTask.approver && (
+            <div className="chat-box">
+              <div className="chat-header">Chat</div>
+              <div className="chat-messages">
+                {chatMessages.length === 0 ? (
+                  <div className="no-messages">No messages yet</div>
+                ) : (
+                  chatMessages.map((msg, index) => (
+                    <div key={index} className={`chat-message ${msg.sender === currentUser?.username ? 'own-message' : 'other-message'}`}>
+                      <div className="message-sender">{msg.sender}</div>
+                      <div className="message-text">{msg.message}</div>
+                      <div className="message-time">{formatDateTime(msg.timestamp)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="chat-input-container">
+                <textarea
+                  className="chat-input"
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                />
                 <button
-                  className="approve-button"
-                  onClick={handleApproveTask}
-                  style={{ backgroundColor: '#10b981' }}
+                  className="send-button"
+                  onClick={handleSendMessage}
+                  disabled={!chatMessage.trim()}
                 >
-                  Approve Task
+                  Send
                 </button>
-              )}
-              <button
-                className="approval-button"
-                onClick={handleApprovalRequest}
-                disabled={!approvalMessage.trim()}
-              >
-                Send
-              </button>
+              </div>
             </div>
           </div>
         )}
