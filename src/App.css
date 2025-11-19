@@ -389,7 +389,7 @@ input:focus {
   gap: 1rem;
 }
 
-.task-detail-label {
+.task-detail-label, .chat-header{
   font-weight: bold;
   color: #666;
 }
@@ -601,15 +601,15 @@ input:focus {
 .chat-box {
   margin-top: 2vh;
   border: 0.1vh solid #e0e0e0;
-  border-radius: 0.8vh;
+  border-radius: 1vh;
   overflow: hidden;
 }
 
 .chat-header {
+  font-weight: bold;
   background-color: #007bff;
   color: white;
-  padding: 1.2vh 1.6vw;
-  font-weight: 600;
+  padding: 1.5%;
   font-size: 1.6vw;
 }
 
@@ -686,7 +686,7 @@ input:focus {
   flex: 1;
   padding: 1vh;
   border: 0.1vh solid #ddd;
-  border-radius: 0.4vh;
+  border-radius: 0.5vh;
   resize: vertical;
   min-height: 5vh;
   max-height: 5vh;
