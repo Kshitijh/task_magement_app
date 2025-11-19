@@ -4,8 +4,6 @@ import axios from "axios";
 import Modal from "./Modal";
 import "../App.css";
 
-import './Dashboard.css';
-
 const API_BASE_URL = "http://localhost:8000";
 
 function Dashboard() {
