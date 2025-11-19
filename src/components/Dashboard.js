@@ -763,7 +763,6 @@ const handleDeleteTask = async (taskId) => {
                     <div key={index} className={`chat-message ${msg.sender === currentUser?.username ? 'own-message' : 'other-message'}`}>
                       <div className="message-sender">{msg.sender}</div>
                       <div className="message-text">{msg.message}</div>
-                      <div className="message-time">{formatDateTime(msg.timestamp)}</div>
                     </div>
                   ))
                 )}
