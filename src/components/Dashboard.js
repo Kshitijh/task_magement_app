@@ -84,7 +84,14 @@ function Dashboard() {
         assigned_to: task.assigned_to,
         priority: task.priority || "Medium",
         created_at: task.created_at,
-        created_by: task.created_by
+        created_by: task.created_by,
+        approval_status: task.approval_status,
+        approval_message: task.approval_message,
+        approval_requested_by: task.approval_requested_by,
+        approval_requested_at: task.approval_requested_at,
+        approved_by: task.approved_by,
+        approved_at: task.approved_at,
+        approval_response_message: task.approval_response_message
       }));
 
       console.log("Transformed tasks:", transformedTasks);
@@ -308,18 +315,50 @@ function Dashboard() {
 
   const handleApprovalRequest = async () => {
     try {
-      await api.post(`/tasks/${selectedTask.id}/approve`, {
+      if (!approvalMessage.trim()) {
+        alert('Please enter a message for the approval request');
+        return;
+      }
+
+      await api.post(`/tasks/${selectedTask.id}/request-approval`, {
         message: approvalMessage,
-        status: 'Approved'
+        status: 'Pending Approval'
       });
+      
       await fetchTasks();
-      alert('Task approval request sent successfully!');
+      alert('Approval request sent successfully to ' + selectedTask.approver + '!');
       setIsModalOpen(false);
       setSelectedTask(null);
       setApprovalMessage("");
     } catch (error) {
-      console.error('Error sending approval:', error);
-      alert(error.response?.data?.message || 'Error sending approval request');
+      console.error('Error sending approval request:', error);
+      alert(error.response?.data?.detail || 'Error sending approval request');
+    }
+  };
+
+  const handleApproveTask = async () => {
+    try {
+      // Check if current user is the approver
+      if (currentUser.username !== selectedTask.approver) {
+        alert('Only the assigned approver can approve this task');
+        return;
+      }
+
+      const confirmApprove = window.confirm('Are you sure you want to approve this task?');
+      if (!confirmApprove) return;
+
+      await api.post(`/tasks/${selectedTask.id}/approve`, null, {
+        params: { approval_message: approvalMessage }
+      });
+      
+      await fetchTasks();
+      alert('Task approved successfully!');
+      setIsModalOpen(false);
+      setSelectedTask(null);
+      setApprovalMessage("");
+    } catch (error) {
+      console.error('Error approving task:', error);
+      alert(error.response?.data?.detail || 'Error approving task');
     }
   };
 const handleUpdateTaskStatus = async (taskId, newStatus) => {
@@ -738,21 +777,58 @@ const handleDeleteTask = async (taskId) => {
                 <span className="task-detail-value">{formatDateTime(selectedTask.created_at)}</span>
               </div>
             )}
+            {selectedTask.approval_status && (
+              <div className="task-detail-row">
+                <span className="task-detail-label">Approval Status:</span>
+                <span className={`task-detail-value ${
+                  selectedTask.approval_status === 'Approved' ? 'status-approved' : 
+                  selectedTask.approval_status === 'Rejected' ? 'status-rejected' : 
+                  'status-pending'
+                }`}>
+                  {selectedTask.approval_status}
+                </span>
+              </div>
+            )}
+            {selectedTask.approval_message && (
+              <div className="task-detail-row">
+                <span className="task-detail-label">Approval Request:</span>
+                <div className="task-detail-value">{selectedTask.approval_message}</div>
+              </div>
+            )}
+            {selectedTask.approved_by && (
+              <div className="task-detail-row">
+                <span className="task-detail-label">Approved By:</span>
+                <span className="task-detail-value">{selectedTask.approved_by}</span>
+              </div>
+            )}
 
             <div className="task-message-box">
               <label className="task-message-label" htmlFor="approval-message">
-                Message for Approval
+                {currentUser?.username === selectedTask.approver ? 
+                  'Approval Response Message (Optional)' : 
+                  'Message for Approval'}
               </label>
               <textarea
                 id="approval-message"
                 className="task-message-input"
                 value={approvalMessage}
                 onChange={(e) => setApprovalMessage(e.target.value)}
-                placeholder="Add any additional comments or context for the approval request..."
+                placeholder={currentUser?.username === selectedTask.approver ?
+                  'Add any comments or feedback for the approval...' :
+                  'Add any additional comments or context for the approval request...'}
               />
             </div>
 
             <div className="modal-footer">
+              {currentUser?.username === selectedTask.approver && (
+                <button
+                  className="approve-button"
+                  onClick={handleApproveTask}
+                  style={{ backgroundColor: '#10b981' }}
+                >
+                  Approve Task
+                </button>
+              )}
               <button
                 className="approval-button"
                 onClick={handleApprovalRequest}

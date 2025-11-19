@@ -68,6 +68,16 @@ class TaskCreate(TaskBase):
 class Task(TaskBase):
     id: str
 
+class ApprovalRequest(BaseModel):
+    message: str
+    status: str = "Pending Approval"
+
+class ApprovalResponse(BaseModel):
+    approved: bool
+    approved_by: str
+    approved_at: datetime
+    approval_message: Optional[str] = None
+
 # Authentication helper functions
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -225,7 +235,14 @@ async def get_tasks(current_user: dict = Depends(get_current_user)):
             "end_datetime": task.get("end_datetime", task.get("end_date")),
             "approver": task.get("approver", ""),
             "assigned_to": task.get("assigned_to", ""),
-            "priority": task.get("priority", "Medium")
+            "priority": task.get("priority", "Medium"),
+            "approval_status": task.get("approval_status"),
+            "approval_message": task.get("approval_message"),
+            "approval_requested_by": task.get("approval_requested_by"),
+            "approval_requested_at": task.get("approval_requested_at"),
+            "approved_by": task.get("approved_by"),
+            "approved_at": task.get("approved_at"),
+            "approval_response_message": task.get("approval_response_message")
         }
         formatted_tasks.append(formatted_task)
     return formatted_tasks
@@ -334,6 +351,102 @@ async def delete_task(task_id: str, current_user: dict = Depends(get_current_use
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Task not found")
     return {"message": "Task deleted successfully"}
+
+# Approval endpoints
+@app.post("/tasks/{task_id}/request-approval")
+async def request_approval(task_id: str, approval: ApprovalRequest, current_user: dict = Depends(get_current_user)):
+    from bson.objectid import ObjectId
+    
+    # Get the task
+    task = db.work_log.find_one({"_id": ObjectId(task_id)})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Update task with approval request
+    update_data = {
+        "approval_status": "Pending Approval",
+        "approval_message": approval.message,
+        "approval_requested_by": current_user["username"],
+        "approval_requested_at": datetime.utcnow(),
+        "status": approval.status
+    }
+    
+    db.work_log.update_one(
+        {"_id": ObjectId(task_id)},
+        {"$set": update_data}
+    )
+    
+    return {
+        "message": "Approval request sent successfully",
+        "approver": task.get("approver", ""),
+        "task_id": task_id
+    }
+
+@app.post("/tasks/{task_id}/approve")
+async def approve_task(task_id: str, approval_message: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    from bson.objectid import ObjectId
+    
+    # Get the task
+    task = db.work_log.find_one({"_id": ObjectId(task_id)})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Check if current user is the approver
+    if task.get("approver") != current_user["username"]:
+        raise HTTPException(status_code=403, detail="Only the assigned approver can approve this task")
+    
+    # Update task with approval
+    update_data = {
+        "approval_status": "Approved",
+        "approved_by": current_user["username"],
+        "approved_at": datetime.utcnow(),
+        "approval_response_message": approval_message,
+        "status": "Approved"
+    }
+    
+    db.work_log.update_one(
+        {"_id": ObjectId(task_id)},
+        {"$set": update_data}
+    )
+    
+    return {
+        "message": "Task approved successfully",
+        "approved_by": current_user["username"],
+        "approved_at": datetime.utcnow()
+    }
+
+@app.post("/tasks/{task_id}/reject")
+async def reject_task(task_id: str, rejection_message: str, current_user: dict = Depends(get_current_user)):
+    from bson.objectid import ObjectId
+    
+    # Get the task
+    task = db.work_log.find_one({"_id": ObjectId(task_id)})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Check if current user is the approver
+    if task.get("approver") != current_user["username"]:
+        raise HTTPException(status_code=403, detail="Only the assigned approver can reject this task")
+    
+    # Update task with rejection
+    update_data = {
+        "approval_status": "Rejected",
+        "rejected_by": current_user["username"],
+        "rejected_at": datetime.utcnow(),
+        "rejection_message": rejection_message,
+        "status": "Rejected"
+    }
+    
+    db.work_log.update_one(
+        {"_id": ObjectId(task_id)},
+        {"$set": update_data}
+    )
+    
+    return {
+        "message": "Task rejected",
+        "rejected_by": current_user["username"],
+        "rejected_at": datetime.utcnow()
+    }
 
 if __name__ == "__main__":
     import uvicorn
