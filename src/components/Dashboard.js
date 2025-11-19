@@ -791,7 +791,7 @@ const handleDeleteTask = async (taskId) => {
             )}
             {selectedTask.approval_message && (
               <div className="task-detail-row">
-                <span className="task-detail-label">Approval Request:</span>
+                <span className="task-detail-label">Message:</span>
                 <div className="task-detail-value">{selectedTask.approval_message}</div>
               </div>
             )}
@@ -806,7 +806,7 @@ const handleDeleteTask = async (taskId) => {
               <label className="task-message-label" htmlFor="approval-message">
                 {currentUser?.username === selectedTask.approver ? 
                   'Approval Response Message (Optional)' : 
-                  'Message for Approval'}
+                  'Message'}
               </label>
               <textarea
                 id="approval-message"
@@ -834,7 +834,7 @@ const handleDeleteTask = async (taskId) => {
                 onClick={handleApprovalRequest}
                 disabled={!approvalMessage.trim()}
               >
-                Send for Approval
+                Send
               </button>
             </div>
           </div>
