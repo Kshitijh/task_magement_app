@@ -237,7 +237,6 @@ async def get_tasks(current_user: dict = Depends(get_current_user)):
             "assigned_to": task.get("assigned_to", ""),
             "priority": task.get("priority", "Medium"),
             "approval_status": task.get("approval_status"),
-            "approval_message": task.get("approval_message"),
             "approval_requested_by": task.get("approval_requested_by"),
             "approval_requested_at": task.get("approval_requested_at"),
             "approved_by": task.get("approved_by"),
@@ -361,10 +360,10 @@ async def request_approval(task_id: str, approval: ApprovalRequest, current_user
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    # Update task with approval request
+    # Update task with approval request - write to description
     update_data = {
         "approval_status": "Pending Approval",
-        "approval_message": approval.message,
+        "description": approval.message,
         "approval_requested_by": current_user["username"],
         "approval_requested_at": datetime.utcnow(),
         "status": approval.status

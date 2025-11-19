@@ -86,7 +86,6 @@ function Dashboard() {
         created_at: task.created_at,
         created_by: task.created_by,
         approval_status: task.approval_status,
-        approval_message: task.approval_message,
         approval_requested_by: task.approval_requested_by,
         approval_requested_at: task.approval_requested_at,
         approved_by: task.approved_by,
@@ -786,12 +785,6 @@ const handleDeleteTask = async (taskId) => {
                 }`}>
                   {selectedTask.approval_status}
                 </span>
-              </div>
-            )}
-            {selectedTask.approval_message && (
-              <div className="task-detail-row">
-                <span className="task-detail-label">Message:</span>
-                <div className="task-detail-value">{selectedTask.approval_message}</div>
               </div>
             )}
             {selectedTask.approved_by && (
