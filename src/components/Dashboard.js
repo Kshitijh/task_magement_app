@@ -5,7 +5,6 @@ import Modal from "./Modal";
 import "../App.css";
 
 import './Dashboard.css';
-import './Chat.css';
 
 const API_BASE_URL = "http://localhost:8000";
 
