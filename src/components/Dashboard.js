@@ -91,7 +91,6 @@ function Dashboard() {
         approval_requested_at: task.approval_requested_at,
         approved_by: task.approved_by,
         approved_at: task.approved_at,
-        approval_response_message: task.approval_response_message
       }));
 
       console.log("Transformed tasks:", transformedTasks);

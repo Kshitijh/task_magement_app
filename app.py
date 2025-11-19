@@ -242,7 +242,6 @@ async def get_tasks(current_user: dict = Depends(get_current_user)):
             "approval_requested_at": task.get("approval_requested_at"),
             "approved_by": task.get("approved_by"),
             "approved_at": task.get("approved_at"),
-            "approval_response_message": task.get("approval_response_message")
         }
         formatted_tasks.append(formatted_task)
     return formatted_tasks
@@ -400,7 +399,6 @@ async def approve_task(task_id: str, approval_message: Optional[str] = None, cur
         "approval_status": "Approved",
         "approved_by": current_user["username"],
         "approved_at": datetime.utcnow(),
-        "approval_response_message": approval_message,
         "status": "Approved"
     }
     
