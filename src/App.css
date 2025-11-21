@@ -742,7 +742,7 @@ input:focus {
 .priority-badge {
   padding: 0.4vh 0.8vh;
   border-radius: 1.2vh;
-  font-size: 1.2vh;
+  font-size: 0.75rem;
   font-weight: bold;
   text-transform: uppercase;
 }
