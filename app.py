@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 from pydantic import BaseModel
 from datetime import datetime
@@ -9,6 +10,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from datetime import timedelta
 import os
+import shutil
+from pathlib import Path
 
 app = FastAPI()
 
@@ -20,6 +23,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Create media directory if it doesn't exist
+MEDIA_DIR = Path("public/chat_media")
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mount static files
+app.mount("/chat_media", StaticFiles(directory="public/chat_media"), name="chat_media")
 
 # MongoDB connection
 MONGO_URI = "mongodb+srv://kshitijhupare07_db_user:Kshitij1001@worklog.lckec0h.mongodb.net/"
@@ -70,6 +80,11 @@ class Task(TaskBase):
 
 class ChatMessage(BaseModel):
     message: str
+
+class ChatMediaMessage(BaseModel):
+    message: Optional[str] = ""
+    media_url: str
+    media_type: str  # 'image' or 'video'
 
 # Authentication helper functions
 def create_access_token(data: dict):
@@ -357,7 +372,8 @@ async def send_message(task_id: str, chat_message: ChatMessage, current_user: di
     message = {
         "message": chat_message.message,
         "sender": current_user["username"],
-        "timestamp": datetime.utcnow()
+        "timestamp": datetime.utcnow(),
+        "type": "text"
     }
     
     # Add message to task's chat array
@@ -370,6 +386,65 @@ async def send_message(task_id: str, chat_message: ChatMessage, current_user: di
         "message": "Message sent successfully",
         "sender": current_user["username"],
         "timestamp": message["timestamp"]
+    }
+
+@app.post("/tasks/{task_id}/upload-media")
+async def upload_media(
+    task_id: str, 
+    file: UploadFile = File(...),
+    message: Optional[str] = "",
+    current_user: dict = Depends(get_current_user)
+):
+    from bson.objectid import ObjectId
+    
+    # Get the task
+    task = db.work_log.find_one({"_id": ObjectId(task_id)})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Validate file type
+    allowed_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.mp4', '.mov', '.avi', '.webm'}
+    file_ext = Path(file.filename).suffix.lower()
+    
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="File type not allowed")
+    
+    # Determine media type
+    media_type = "image" if file_ext in {'.jpg', '.jpeg', '.png', '.gif'} else "video"
+    
+    # Generate unique filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    unique_filename = f"{current_user['username']}_{timestamp}_{file.filename}"
+    file_path = MEDIA_DIR / unique_filename
+    
+    # Save file
+    try:
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+    
+    # Create message object with media
+    message_obj = {
+        "message": message or "",
+        "sender": current_user["username"],
+        "timestamp": datetime.utcnow(),
+        "type": "media",
+        "media_type": media_type,
+        "media_url": f"/chat_media/{unique_filename}",
+        "filename": file.filename
+    }
+    
+    # Add message to task's chat array
+    db.work_log.update_one(
+        {"_id": ObjectId(task_id)},
+        {"$push": {"chat_messages": message_obj}}
+    )
+    
+    return {
+        "message": "Media uploaded successfully",
+        "media_url": message_obj["media_url"],
+        "media_type": media_type
     }
 
 @app.get("/tasks/{task_id}/messages")

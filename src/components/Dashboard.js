@@ -17,6 +17,8 @@ function Dashboard() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = React.useRef(null);
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -314,8 +316,66 @@ function Dashboard() {
     }
   };
 
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'video/mp4', 'video/mov', 'video/avi', 'video/webm'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select an image (JPG, PNG, GIF) or video (MP4, MOV, AVI, WEBM) file');
+        return;
+      }
+      
+      // Validate file size (max 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        alert('File size must be less than 50MB');
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUploadMedia = async () => {
+    try {
+      if (!selectedFile) {
+        alert('Please select a file');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      if (chatMessage.trim()) {
+        formData.append('message', chatMessage);
+      }
+
+      await api.post(`/tasks/${selectedTask.id}/upload-media`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setChatMessage("");
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      await fetchChatMessages(selectedTask.id);
+    } catch (error) {
+      console.error('Error uploading media:', error);
+      alert(error.response?.data?.detail || 'Error uploading media');
+    }
+  };
+
   const handleSendMessage = async () => {
     try {
+      // If there's a file selected, upload it instead
+      if (selectedFile) {
+        await handleUploadMedia();
+        return;
+      }
+
       if (!chatMessage.trim()) {
         alert('Please enter a message');
         return;
@@ -760,28 +820,78 @@ const handleDeleteTask = async (taskId) => {
                   chatMessages.map((msg, index) => (
                     <div key={index} className={`chat-message ${msg.sender === currentUser?.username ? 'own-message' : 'other-message'}`}>
                       <div className="message-sender">{msg.sender}</div>
-                      <div className="message-text">{msg.message}</div>
+                      {msg.type === 'media' ? (
+                        <div className="message-media">
+                          {msg.media_type === 'image' ? (
+                            <img 
+                              src={`http://localhost:8000${msg.media_url}`} 
+                              alt="Shared image" 
+                              className="chat-image"
+                              onClick={() => window.open(`http://localhost:8000${msg.media_url}`, '_blank')}
+                            />
+                          ) : (
+                            <video 
+                              src={`http://localhost:8000${msg.media_url}`} 
+                              controls 
+                              className="chat-video"
+                            />
+                          )}
+                          {msg.message && <div className="message-text">{msg.message}</div>}
+                        </div>
+                      ) : (
+                        <div className="message-text">{msg.message}</div>
+                      )}
                     </div>
                   ))
                 )}
               </div>
               <div className="chat-input-container">
-                <textarea
-                  className="chat-input"
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/*,video/*"
+                  onChange={handleFileSelect}
                 />
+                <div className="chat-input-wrapper">
+                  <textarea
+                    className="chat-input"
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    placeholder={selectedFile ? `File: ${selectedFile.name}` : "Type a message..."}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                  />
+                  <button
+                    className="attachment-button"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Attach image or video"
+                  >
+                    📎
+                  </button>
+                </div>
+                {selectedFile && (
+                  <button
+                    className="clear-file-button"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    title="Clear selected file"
+                  >
+                    ✕
+                  </button>
+                )}
                 <button
                   className="send-button"
                   onClick={handleSendMessage}
-                  disabled={!chatMessage.trim()}
+                  disabled={!chatMessage.trim() && !selectedFile}
                 >
                   Send
                 </button>
