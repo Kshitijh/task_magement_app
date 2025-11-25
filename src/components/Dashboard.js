@@ -19,6 +19,7 @@ function Dashboard() {
   const [chatMessages, setChatMessages] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = React.useRef(null);
+  const chatMessagesEndRef = React.useRef(null);
   const [tasks, setTasks] = useState([]);
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -311,6 +312,10 @@ function Dashboard() {
     try {
       const response = await api.get(`/tasks/${taskId}/messages`);
       setChatMessages(response.data || []);
+      // Scroll to bottom after messages are loaded
+      setTimeout(() => {
+        chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       console.error('Error fetching chat messages:', error);
     }
@@ -844,6 +849,7 @@ const handleDeleteTask = async (taskId) => {
                     </div>
                   ))
                 )}
+                <div ref={chatMessagesEndRef} />
               </div>
               <div className="chat-input-container">
                 <input
